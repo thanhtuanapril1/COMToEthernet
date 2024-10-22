@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.11.35303.130
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "COMToEthernet", "COMToEthernet\COMToEthernet.csproj", "{8449055B-8EA3-45A5-8636-A0E67556DC45}"
+EndProject
+Project("{54435603-DBB4-11D2-8724-00A0C9A8B90C}") = "COMToEthernetIns", "COMToEthernetIns\COMToEthernetIns.vdproj", "{14FC56A2-2B51-480C-8969-4EA9EFCAC83C}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{8449055B-8EA3-45A5-8636-A0E67556DC45}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8449055B-8EA3-45A5-8636-A0E67556DC45}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8449055B-8EA3-45A5-8636-A0E67556DC45}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8449055B-8EA3-45A5-8636-A0E67556DC45}.Release|Any CPU.Build.0 = Release|Any CPU
+		{14FC56A2-2B51-480C-8969-4EA9EFCAC83C}.Debug|Any CPU.ActiveCfg = Debug
+		{14FC56A2-2B51-480C-8969-4EA9EFCAC83C}.Debug|Any CPU.Build.0 = Debug
+		{14FC56A2-2B51-480C-8969-4EA9EFCAC83C}.Release|Any CPU.ActiveCfg = Release
+		{14FC56A2-2B51-480C-8969-4EA9EFCAC83C}.Release|Any CPU.Build.0 = Release
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {FE6E1C6E-6796-45C0-BE38-263A12C3F14E}
+	EndGlobalSection
+EndGlobal
