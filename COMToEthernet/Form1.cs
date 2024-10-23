@@ -239,6 +239,9 @@ namespace COMToEthernet
                             txtTCPReceived.AppendText($"({data}) ");
                         });
 
+                        // Log received TCP data
+                        LogMessage($"TCP Received: {data}");
+
                         if (_serialPort != null && _serialPort.IsOpen)
                         {
                             _serialPort.Write(buffer, 0, bytesRead);
@@ -296,6 +299,9 @@ namespace COMToEthernet
                     txtCOMReceived.AppendText($"({data}) ");
                 });
 
+                // Log received COM data
+                LogMessage($"COM Port Received: {data}");
+
                 foreach (var client in _connectedClients)
                 {
                     if (client != null && client.Connected)
@@ -349,6 +355,14 @@ namespace COMToEthernet
                 lblCOMStatus.Text = "Disconnected";
                 lblStatusContent.Text = $"[{DateTime.Now}] Could not reconnect to COM port after several attempts";
             });
+        }
+        private void LogMessage(string message)
+        {
+            string logFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "log.txt");
+            using (StreamWriter writer = new StreamWriter(logFilePath, true))
+            {
+                writer.WriteLine($"{DateTime.Now}: {message}");
+            }
         }
     }
 }
