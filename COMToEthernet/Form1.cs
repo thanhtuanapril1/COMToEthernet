@@ -2,6 +2,7 @@ using System.Configuration;
 using System.IO.Ports;
 using System.Net;
 using System.Net.Sockets;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace COMToEthernet
 {
@@ -92,10 +93,12 @@ namespace COMToEthernet
                     _serialPort.DataReceived += DataReceivedHandler;
 
                     _serialPort.Open();
+                    LogMessage($"[{DateTime.Now}] Serial port {cbxCOM.Text} opened.");
                 }
                 catch (Exception ex)
                 {
                     lblStatusContent.Text = $"[{DateTime.Now.ToString()}] Error: {ex.Message}";
+                    LogMessage($"[{DateTime.Now.ToString()}] Error: {ex.Message}");
                     return;
                 }
             }
@@ -103,6 +106,7 @@ namespace COMToEthernet
             if (!int.TryParse(tbxPort.Text, out int tcpPort))
             {
                 lblStatusContent.Text = "[" + DateTime.Now.ToString() + "]" + "Invalid port number.";
+                LogMessage($"[{DateTime.Now.ToString()}] Error: Invalid port number.");
                 return;
             }
 
@@ -111,6 +115,8 @@ namespace COMToEthernet
                 _tcpListener = new TcpListener(IPAddress.Any, tcpPort);
                 _tcpListener.Start();
                 _listening = true;
+                LogMessage($"[{DateTime.Now.ToString()}] TCP server started on port {tcpPort}.");
+
                 Task.Run(ListenForClients);
             }
 
@@ -134,10 +140,12 @@ namespace COMToEthernet
                     ConfigurationManager.RefreshSection("appSettings");
 
                     lblSaveStatus.Text = "Save successful.";
+                    LogMessage($"[{DateTime.Now.ToString()}] Configuration saved.");
                 }
                 catch (Exception ex)
                 {
                     lblSaveStatus.Text = $"[{DateTime.Now.ToString()}] Error: {ex.Message}";
+                    LogMessage($"[{DateTime.Now.ToString()}] Error: {ex.Message}");
                 }
 
             }
@@ -154,6 +162,9 @@ namespace COMToEthernet
                 client.Close();
             }
             _connectedClients.Clear();
+
+            LogMessage($"[{DateTime.Now.ToString()}] Serial port {cbxCOM.Text} closed.");
+            LogMessage($"[{DateTime.Now.ToString()}] TCP server stopped.");
 
             if (_serialPort.IsOpen)
             {
@@ -240,7 +251,7 @@ namespace COMToEthernet
                         });
 
                         // Log received TCP data
-                        LogMessage($"TCP Received: {data}");
+                        //LogMessage($"TCP Received: {data}");
 
                         if (_serialPort != null && _serialPort.IsOpen)
                         {
@@ -251,7 +262,6 @@ namespace COMToEthernet
                             if (_reconnectTask.IsCompleted)
                             {
                                 _reconnectTask = TryReconnectSerialPort();
-
                             }
                         }
                     }
@@ -261,6 +271,7 @@ namespace COMToEthernet
                     this.Invoke((MethodInvoker)delegate
                     {
                         lblStatusContent.Text = $"[{DateTime.Now.ToString()}] Error: {ex.Message}";
+                        LogMessage($"[{DateTime.Now.ToString()}] Error: {ex.Message}");
                     });
                 }
             }
@@ -300,7 +311,7 @@ namespace COMToEthernet
                 });
 
                 // Log received COM data
-                LogMessage($"COM Port Received: {data}");
+                //LogMessage($"COM Port Received: {data}");
 
                 foreach (var client in _connectedClients)
                 {
@@ -315,6 +326,7 @@ namespace COMToEthernet
                             this.Invoke((MethodInvoker)delegate
                             {
                                 lblStatusContent.Text = $"[{DateTime.Now.ToString()}] Error: {ex.Message}";
+                                LogMessage($"[{DateTime.Now.ToString()}] Error: {ex.Message}");
                             });
                         }
                     }
@@ -336,6 +348,7 @@ namespace COMToEthernet
                         {
                             lblCOMStatus.Text = "Reconnected";
                             lblStatusContent.Text = $"[{DateTime.Now}] Successfully reconnected to COM port";
+                            LogMessage($"[{DateTime.Now.ToString()}] Successfully reconnected to COM port");
                         });
                         return;
                     }
@@ -345,6 +358,7 @@ namespace COMToEthernet
                     this.Invoke((MethodInvoker)delegate
                     {
                         lblStatusContent.Text = $"[{DateTime.Now}] Reconnection attempt failed: {ex.Message}";
+                        LogMessage($"[{DateTime.Now.ToString()}] Error: Reconnection attempt failed: {ex.Message}");
                     });
                 }
                 retryAttempts--;
@@ -354,11 +368,17 @@ namespace COMToEthernet
             {
                 lblCOMStatus.Text = "Disconnected";
                 lblStatusContent.Text = $"[{DateTime.Now}] Could not reconnect to COM port after several attempts";
+                LogMessage($"[{DateTime.Now.ToString()}] Error: Could not reconnect to COM port after several attempts");
             });
         }
         private void LogMessage(string message)
         {
-            string logFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "log.txt");
+            string logDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "COMToEthernet");
+            Directory.CreateDirectory(logDirectory);
+
+            string timestamp = DateTime.Now.ToString("yyyyMMdd");
+            string logFilePath = Path.Combine(logDirectory, $"log_{timestamp}.txt");
+
             using (StreamWriter writer = new StreamWriter(logFilePath, true))
             {
                 writer.WriteLine($"{DateTime.Now}: {message}");
@@ -370,6 +390,8 @@ namespace COMToEthernet
             // Clear the text boxes to release memory
             txtCOMReceived.Text = "";
             txtTCPReceived.Text = "";
+
+            LogMessage($"[{DateTime.Now.ToString()}] Clearing text boxes to release memory");
         }
     }
 }
