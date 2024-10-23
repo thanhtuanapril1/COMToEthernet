@@ -364,5 +364,12 @@ namespace COMToEthernet
                 writer.WriteLine($"{DateTime.Now}: {message}");
             }
         }
+
+        private void timer1_Tick(object sender, EventArgs e)
+        {
+            // Clear the text boxes to release memory
+            txtCOMReceived.Text = "";
+            txtTCPReceived.Text = "";
+        }
     }
 }

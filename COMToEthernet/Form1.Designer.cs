@@ -59,6 +59,7 @@
             label8 = new Label();
             txtCOMReceived = new TextBox();
             pictureBox1 = new PictureBox();
+            timer1 = new System.Windows.Forms.Timer(components);
             panel1.SuspendLayout();
             panel2.SuspendLayout();
             panel3.SuspendLayout();
@@ -339,6 +340,11 @@
             pictureBox1.TabIndex = 19;
             pictureBox1.TabStop = false;
             // 
+            // timer1
+            // 
+            timer1.Interval = 900000;
+            timer1.Tick += timer1_Tick;
+            // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
@@ -400,5 +406,6 @@
         private Label lblClients;
         private Label lblCOMStatus;
         private PictureBox pictureBox1;
+        private System.Windows.Forms.Timer timer1;
     }
 }
