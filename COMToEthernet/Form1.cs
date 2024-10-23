@@ -16,6 +16,7 @@ namespace COMToEthernet
         bool _listening;
         bool hideApp;
         bool runWhenStart;
+        private Task _reconnectTask = Task.CompletedTask;
 
         public Form1()
         {
@@ -71,7 +72,7 @@ namespace COMToEthernet
             cbxStopBit.Text = stopBits;
             tbxPort.Text = tcpPort;
 
-            if(runWhenStart) btConnect_Click(sender, e);
+            if (runWhenStart) btConnect_Click(sender, e);
             if (hideApp)
             {
                 this.ShowInTaskbar = false;
@@ -94,7 +95,7 @@ namespace COMToEthernet
                 }
                 catch (Exception ex)
                 {
-                    lblStatusContent.Text = "[" + DateTime.Now.ToString() + "]" + ex.Message;
+                    lblStatusContent.Text = $"[{DateTime.Now.ToString()}] Error: {ex.Message}";
                     return;
                 }
             }
@@ -136,7 +137,7 @@ namespace COMToEthernet
                 }
                 catch (Exception ex)
                 {
-                    lblSaveStatus.Text = "[" + DateTime.Now.ToString() + "]" + ex.Message;
+                    lblSaveStatus.Text = $"[{DateTime.Now.ToString()}] Error: {ex.Message}";
                 }
 
             }
@@ -192,23 +193,19 @@ namespace COMToEthernet
                 this.ShowInTaskbar = false;
                 this.Hide();
             }
-            else
-            {
-                this.ShowInTaskbar = true;
-            }
         }
         private void notifyIcon1_MouseDoubleClick(object sender, MouseEventArgs e)
         {
             this.Show();
+            this.ShowInTaskbar = true;
             this.WindowState = FormWindowState.Normal;
         }
-
 
         public async Task ListenForClients()
         {
             while (_listening)
             {
-                TcpClient client = await _tcpListener.AcceptTcpClientAsync();
+                TcpClient client = await _tcpListener.AcceptTcpClientAsync(); //Wait for a client to connect
                 _connectedClients.Add(client);
 
                 this.Invoke((MethodInvoker)delegate
@@ -229,36 +226,38 @@ namespace COMToEthernet
                     {
                         if (_serialPort.IsOpen) lblCOMStatus.Text = "Connected";
                         else lblCOMStatus.Text = "Disconnected";
-
-                        lblClients.Text = "Clients: " + _connectedClients.Count.ToString();
                     });
 
                     byte[] buffer = new byte[1024];
                     int bytesRead;
 
-                    if (_serialPort != null && _serialPort.IsOpen)
+                    while ((bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length)) != 0)
                     {
-                        while ((bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length)) != 0)
+                        string data = BitConverter.ToString(buffer, 0, bytesRead).Replace("-", " ");
+                        this.Invoke((MethodInvoker)delegate
                         {
-                            string data = BitConverter.ToString(buffer, 0, bytesRead).Replace("-"," ");
-                            this.Invoke((MethodInvoker)delegate
-                            {
-                                txtTCPReceived.AppendText($"({data}) ");
-                            });
+                            txtTCPReceived.AppendText($"({data}) ");
+                        });
 
+                        if (_serialPort != null && _serialPort.IsOpen)
+                        {
                             _serialPort.Write(buffer, 0, bytesRead);
                         }
-                    }
-                    else
-                    {
-                        _serialPort.Open();
+                        else
+                        {
+                            if (_reconnectTask.IsCompleted)
+                            {
+                                _reconnectTask = TryReconnectSerialPort();
+
+                            }
+                        }
                     }
                 }
                 catch (Exception ex)
                 {
                     this.Invoke((MethodInvoker)delegate
                     {
-                        lblStatusContent.Text = "[" + DateTime.Now.ToString() + "]" + ex.Message;
+                        lblStatusContent.Text = $"[{DateTime.Now.ToString()}] Error: {ex.Message}";
                     });
                 }
             }
@@ -281,6 +280,10 @@ namespace COMToEthernet
         }
         public void OnTimedEvent(System.Object source, System.Timers.ElapsedEventArgs e)
         {
+            if (_buffer == null)
+            {
+                return;
+            }
             // Assume the message is complete if no new data received within the interval
             if (_buffer.Count > 0)
             {
@@ -295,7 +298,7 @@ namespace COMToEthernet
 
                 foreach (var client in _connectedClients)
                 {
-                    if (client.Connected)
+                    if (client != null && client.Connected)
                     {
                         try
                         {
@@ -305,12 +308,47 @@ namespace COMToEthernet
                         {
                             this.Invoke((MethodInvoker)delegate
                             {
-                                lblStatusContent.Text = "[" + DateTime.Now.ToString() + "]" + ex.Message;
+                                lblStatusContent.Text = $"[{DateTime.Now.ToString()}] Error: {ex.Message}";
                             });
                         }
                     }
                 }
             }
+        }
+        private async Task TryReconnectSerialPort()
+        {
+            int retryAttempts = 2; // Number of attempts
+            while (retryAttempts > 0)
+            {
+                try
+                {
+                    await Task.Delay(5000); // Wait for 5 seconds
+                    _serialPort.Open();
+                    if (_serialPort.IsOpen)
+                    {
+                        this.Invoke((MethodInvoker)delegate
+                        {
+                            lblCOMStatus.Text = "Reconnected";
+                            lblStatusContent.Text = $"[{DateTime.Now}] Successfully reconnected to COM port";
+                        });
+                        return;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    this.Invoke((MethodInvoker)delegate
+                    {
+                        lblStatusContent.Text = $"[{DateTime.Now}] Reconnection attempt failed: {ex.Message}";
+                    });
+                }
+                retryAttempts--;
+            }
+
+            this.Invoke((MethodInvoker)delegate
+            {
+                lblCOMStatus.Text = "Disconnected";
+                lblStatusContent.Text = $"[{DateTime.Now}] Could not reconnect to COM port after several attempts";
+            });
         }
     }
 }
