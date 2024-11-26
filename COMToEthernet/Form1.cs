@@ -245,6 +245,16 @@ namespace COMToEthernet
                     while ((bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length)) != 0)
                     {
                         string data = BitConverter.ToString(buffer, 0, bytesRead).Replace("-", " ");
+
+                        //if (data == "73 74 6F 70") //"stop" ASCII: 0x73 0x74 0x6F 0x70
+                        //{
+                        //    this.Invoke((MethodInvoker)delegate
+                        //    {
+                        //        btDisconnect_Click(null, null);
+                        //    });
+                        //    break;
+                        //}
+
                         this.Invoke((MethodInvoker)delegate
                         {
                             txtTCPReceived.AppendText($"({data}) ");
