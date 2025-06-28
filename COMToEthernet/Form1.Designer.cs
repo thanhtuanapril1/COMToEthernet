@@ -343,7 +343,7 @@
             // timer1
             // 
             timer1.Enabled = true;
-            timer1.Interval = 300000;
+            timer1.Interval = 60000;
             timer1.Tick += timer1_Tick;
             // 
             // Form1
@@ -363,6 +363,7 @@
             Icon = (Icon)resources.GetObject("$this.Icon");
             Name = "Form1";
             Text = "COMToEthernet";
+            FormClosing += Form1_FormClosing;
             Load += Form1_Load;
             Resize += Form1_Resize;
             panel1.ResumeLayout(false);
