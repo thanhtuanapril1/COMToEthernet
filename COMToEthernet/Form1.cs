@@ -12,6 +12,9 @@ namespace COMToEthernet
         SerialPort _serialPort = new SerialPort();
         TcpListener _tcpListener;
         List<TcpClient> _connectedClients = new List<TcpClient>();
+        // Ensures all threads synchronize on this single object
+        private readonly object _clientsLock = new object();
+        // Buffer to hold incoming data from the serial port
         List<byte> _buffer = new List<byte>();
         System.Timers.Timer _timer = new System.Timers.Timer(50); // Adjust interval as needed
         bool _listening;
@@ -52,7 +55,7 @@ namespace COMToEthernet
             catch (Exception ex)
             {
                 lblStatusContent.Text = ex.Message;
-                LogMessage($"[{DateTime.Now.ToString()}] Error loading configuration: {ex.Message}");
+                Logger.Log($"[{DateTime.Now.ToString()}] Error loading configuration: {ex.Message}");
             }
         }
 
@@ -94,26 +97,26 @@ namespace COMToEthernet
                     _serialPort.DataReceived += DataReceivedHandler;
 
                     _serialPort.Open();
-                    LogMessage($"[{DateTime.Now}] Serial port {cbxCOM.Text} opened.");
+                    Logger.Log($"[{DateTime.Now}] Serial port {cbxCOM.Text} opened.");
                 }
                 catch (Exception ex)
                 {
-                    this.Invoke((MethodInvoker)delegate
+                    SafeUI(() =>
                     {
                         lblStatusContent.Text = $"[{DateTime.Now.ToString()}] Error: {ex.Message}";
                     });
-                    LogMessage($"[{DateTime.Now.ToString()}] Error loading configuration: {ex.Message}");
+                    Logger.Log($"[{DateTime.Now.ToString()}] Error loading configuration: {ex.Message}");
                     return;
                 }
             }
 
             if (!int.TryParse(tbxPort.Text, out int tcpPort))
             {
-                this.Invoke((MethodInvoker)delegate
+                SafeUI(() =>
                 {
                     lblStatusContent.Text = "[" + DateTime.Now.ToString() + "]" + "Invalid port number.";
                 });
-                LogMessage($"[{DateTime.Now.ToString()}] Error: Invalid port number.");
+                Logger.Log($"[{DateTime.Now.ToString()}] Error: Invalid port number.");
                 return;
             }
 
@@ -122,7 +125,7 @@ namespace COMToEthernet
                 _tcpListener = new TcpListener(IPAddress.Any, tcpPort);
                 _tcpListener.Start();
                 _listening = true;
-                LogMessage($"[{DateTime.Now.ToString()}] TCP server started on port {tcpPort}.");
+                Logger.Log($"[{DateTime.Now.ToString()}] TCP server started on port {tcpPort}.");
 
                 Task.Run(ListenForClients);
             }
@@ -147,19 +150,19 @@ namespace COMToEthernet
                     Config.Save(ConfigurationSaveMode.Modified);
                     ConfigurationManager.RefreshSection("appSettings");
 
-                    this.Invoke((MethodInvoker)delegate
+                    SafeUI(() =>
                     {
                         lblSaveStatus.Text = "Save successful.";
                     });
-                    LogMessage($"[{DateTime.Now.ToString()}] Configuration saved.");
+                    Logger.Log($"[{DateTime.Now.ToString()}] Configuration saved.");
                 }
                 catch (Exception ex)
                 {
-                    this.Invoke((MethodInvoker)delegate
+                    SafeUI(() =>
                     {
                         lblSaveStatus.Text = $"[{DateTime.Now.ToString()}] Error: {ex.Message}";
                     });
-                    LogMessage($"[{DateTime.Now.ToString()}] Error: {ex.Message}");
+                    Logger.Log($"[{DateTime.Now.ToString()}] Error: {ex.Message}");
                 }
 
             }
@@ -179,8 +182,8 @@ namespace COMToEthernet
                 }
                 _connectedClients.Clear();
 
-                LogMessage($"[{DateTime.Now.ToString()}] Serial port {cbxCOM.Text} closed.");
-                LogMessage($"[{DateTime.Now.ToString()}] TCP server stopped.");
+                Logger.Log($"[{DateTime.Now.ToString()}] Serial port {cbxCOM.Text} closed.");
+                Logger.Log($"[{DateTime.Now.ToString()}] TCP server stopped.");
 
                 if (_serialPort.IsOpen)
                 {
@@ -201,11 +204,11 @@ namespace COMToEthernet
             }
             catch (Exception ex)
             {
-                this.Invoke((MethodInvoker)delegate
+                SafeUI(() =>
                 {
                     lblSaveStatus.Text = $"[{DateTime.Now.ToString()}] Error: {ex.Message}";
                 });
-                LogMessage($"[{DateTime.Now.ToString()}] Error: {ex.Message}");
+                Logger.Log($"[{DateTime.Now.ToString()}] Error: {ex.Message}");
             }
         }
         private void btRefresh_Click(object sender, EventArgs e)
@@ -246,17 +249,39 @@ namespace COMToEthernet
         }
         public async Task ListenForClients()
         {
-            while (_listening)
+            try
             {
-                TcpClient client = await _tcpListener.AcceptTcpClientAsync(); //Wait for a client to connect
-                _connectedClients.Add(client);
-
-                this.Invoke((MethodInvoker)delegate
+                while (_listening)
                 {
-                    lblClients.Text = "Clients: " + _connectedClients.Count.ToString();
-                });
+                    TcpClient client = await _tcpListener.AcceptTcpClientAsync(); //Wait for a client to connect
+                    lock (_clientsLock)
+                    {
+                        _connectedClients.Add(client);
+                    }
 
-                _ = Task.Run(() => HandleClient(client));
+                    SafeUI(() =>
+                    {
+                        lblClients.Text = "Clients: " + _connectedClients.Count.ToString();
+                    });
+
+                    _ = Task.Run(() => HandleClient(client));
+                }
+            }
+            catch (SocketException ex)
+            {
+                SafeUI(() =>
+                {
+                    lblStatusContent.Text = $"[{DateTime.Now.ToString()}] Error SocketException: {ex.Message}";
+                    Logger.Log($"[{DateTime.Now.ToString()}] Error SocketException: {ex.Message}");
+                });
+            }
+            catch (Exception ex)
+            {
+                SafeUI(() =>
+                {
+                    lblStatusContent.Text = $"[{DateTime.Now.ToString()}] Error ListenForClients failed: {ex.Message}";
+                    Logger.Log($"[{DateTime.Now.ToString()}] Error ListenForClients failed: {ex.Message}");
+                });
             }
         }
         public async Task HandleClient(TcpClient client)
@@ -265,7 +290,7 @@ namespace COMToEthernet
             {
                 try
                 {
-                    this.Invoke((MethodInvoker)delegate
+                    SafeUI(() =>
                     {
                         if (_serialPort.IsOpen) lblCOMStatus.Text = "Connected";
                         else lblCOMStatus.Text = "Disconnected";
@@ -280,20 +305,20 @@ namespace COMToEthernet
 
                         if (data == "73 74 6F 70") //"stop" ASCII: 0x73 0x74 0x6F 0x70
                         {
-                            this.Invoke((MethodInvoker)delegate
+                            SafeUI(() =>
                             {
                                 btDisconnect_Click(null, null);
                             });
                             break;
                         }
 
-                        this.Invoke((MethodInvoker)delegate
+                        SafeUI(() =>
                         {
                             txtTCPReceived.AppendText($"({data}) ");
                         });
 
                         // Log received TCP data
-                        //LogMessage($"TCP Received: {data}");
+                        //Logger.Log($"TCP Received: {data}");
 
                         if (_serialPort != null && _serialPort.IsOpen)
                         {
@@ -310,16 +335,21 @@ namespace COMToEthernet
                 }
                 catch (Exception ex)
                 {
-                    this.Invoke((MethodInvoker)delegate
+                    SafeUI(() =>
                     {
                         lblStatusContent.Text = $"[{DateTime.Now.ToString()}] Error: {ex.Message}";
-                        LogMessage($"[{DateTime.Now.ToString()}] Error: {ex.Message}");
+                        Logger.Log($"[{DateTime.Now.ToString()}] Error: {ex.Message}");
                     });
                 }
             }
 
-            _connectedClients.Remove(client);
+            // After finishing with a client:
+            lock (_clientsLock)
+            {
+                _connectedClients.Remove(client);
+            }
             client.Close();
+            SafeUI(() => lblClients.Text = "Clients: " + _connectedClients.Count);
         }
         public void DataReceivedHandler(object sender, SerialDataReceivedEventArgs e)
         {
@@ -339,63 +369,86 @@ namespace COMToEthernet
             }
             catch (Exception ex)
             {
-                this.Invoke((MethodInvoker)delegate
+                SafeUI(() =>
                 {
                     lblStatusContent.Text = $"[{DateTime.Now.ToString()}] Error DataReceivedHandler: {ex.Message}";
-                    LogMessage($"[{DateTime.Now.ToString()}] Error DataReceivedHandler: {ex.Message}");
+                    Logger.Log($"[{DateTime.Now.ToString()}] Error DataReceivedHandler: {ex.Message}");
                 });
             }
         }
         public void OnTimedEvent(System.Object source, System.Timers.ElapsedEventArgs e)
         {
-            if (_buffer == null)
+            try
             {
-                return;
-            }
-            // Assume the message is complete if no new data received within the interval
-            if (_buffer.Count > 0)
-            {
-                try
+                if (_buffer == null)
                 {
-                    // Convert the buffer to a byte array and clear the buffer
-                    byte[] completeMessage = _buffer.ToArray();
-                    _buffer.Clear();
-
-                    string data = BitConverter.ToString(completeMessage).Replace("-", " ");
-                    this.Invoke((MethodInvoker)delegate
+                    return;
+                }
+                // Assume the message is complete if no new data received within the interval
+                if (_buffer.Count > 0)
+                {
+                    try
                     {
-                        txtCOMReceived.AppendText($"({data}) ");
-                    });
-                    // Log received COM data
-                    //LogMessage($"COM Port Received: {data}");
+                        // Convert the buffer to a byte array and clear the buffer
+                        byte[] completeMessage = _buffer.ToArray();
+                        _buffer.Clear();
 
-                    foreach (var client in _connectedClients)
-                    {
-                        if (client != null && client.Connected)
+                        string data = BitConverter.ToString(completeMessage).Replace("-", " ");
+                        SafeUI(() =>
                         {
-                            try
+                            txtCOMReceived.AppendText($"({data}) ");
+                        });
+
+                        // Create a snapshot to avoid collection modification
+                        List<TcpClient> clientsCopy;
+                        lock (_clientsLock)
+                        {
+                            // Create a copy so you can iterate outside the lock
+                            clientsCopy = _connectedClients.ToList();
+                        }
+                        foreach (var client in clientsCopy)
+                        {
+                            if (client != null)
                             {
-                                client.GetStream().Write(completeMessage, 0, completeMessage.Length);
-                            }
-                            catch (Exception ex)
-                            {
-                                this.Invoke((MethodInvoker)delegate
+                                try
                                 {
-                                    lblStatusContent.Text = $"[{DateTime.Now.ToString()}] Error: {ex.Message}";
-                                    LogMessage($"[{DateTime.Now.ToString()}] Error: {ex.Message}");
-                                });
+                                    if (client.Connected)
+                                    {
+                                        // Send the complete message to the connected client
+                                        NetworkStream stream = client.GetStream();
+                                        stream.WriteTimeout = 1000; // 1 second timeout
+                                        stream.Write(completeMessage, 0, completeMessage.Length);
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    _connectedClients.Remove(client); // Remove from original list
+                                    client.Close();
+                                    SafeUI(() =>
+                                    {
+                                        lblStatusContent.Text = $"[{DateTime.Now.ToString()}] Error: {ex.Message}";
+                                        Logger.Log($"[{DateTime.Now.ToString()}] Error: {ex.Message}");
+                                    });
+                                }
                             }
                         }
                     }
-                }
-                catch (Exception ex)
-                {
-                    this.Invoke((MethodInvoker)delegate
+                    catch (Exception ex)
                     {
-                        lblStatusContent.Text = $"[{DateTime.Now.ToString()}] Error processing data: {ex.Message}";
-                        LogMessage($"[{DateTime.Now.ToString()}] Error processing data: {ex.Message}");
-                    });
+                        SafeUI(() =>
+                        {
+                            lblStatusContent.Text = $"[{DateTime.Now.ToString()}] Error processing data: {ex.Message}";
+                            Logger.Log($"[{DateTime.Now.ToString()}] Error processing data: {ex.Message}");
+                        });
+                    }
                 }
+            }
+            catch (Exception ex)
+            {
+                Logger.Log($"[{DateTime.Now.ToString()}] OnTimedEvent Error: {ex.Message}");
+                SafeUI(() =>
+                    lblStatusContent.Text = $"[{DateTime.Now.ToString()}] OnTimedEvent Error: {ex.Message}"
+                );
             }
         }
         private async Task TryReconnectSerialPort()
@@ -406,57 +459,77 @@ namespace COMToEthernet
                 try
                 {
                     await Task.Delay(5000); // Wait for 5 seconds
+                                            // Check if object was disposed
+                    if (_serialPort == null)
+                    {
+                        Logger.Log("SerialPort was disposed, cannot reconnect");
+                        return;
+                    }
+
                     _serialPort.Open();
                     if (_serialPort.IsOpen)
                     {
-                        this.Invoke((MethodInvoker)delegate
+                        SafeUI(() =>
                         {
                             lblCOMStatus.Text = "Reconnected";
                             lblStatusContent.Text = $"[{DateTime.Now}] Successfully reconnected to COM port";
-                            LogMessage($"[{DateTime.Now.ToString()}] Successfully reconnected to COM port");
+                            Logger.Log($"[{DateTime.Now.ToString()}] Successfully reconnected to COM port");
                         });
                         return;
                     }
                 }
+                catch (ObjectDisposedException)
+                {
+                    Logger.Log("SerialPort disposed during reconnection attempt");
+                    return; // Exit gracefully
+                }
                 catch (Exception ex)
                 {
-                    this.Invoke((MethodInvoker)delegate
+                    SafeUI(() =>
                     {
                         lblStatusContent.Text = $"[{DateTime.Now}] Reconnection attempt failed: {ex.Message}";
-                        LogMessage($"[{DateTime.Now.ToString()}] Error: Reconnection attempt failed: {ex.Message}");
+                        Logger.Log($"[{DateTime.Now.ToString()}] Error: Reconnection attempt failed: {ex.Message}");
                     });
                 }
                 retryAttempts--;
             }
 
-            this.Invoke((MethodInvoker)delegate
+            SafeUI(() =>
             {
                 lblCOMStatus.Text = "Disconnected";
                 lblStatusContent.Text = $"[{DateTime.Now}] Could not reconnect to COM port after several attempts";
-                LogMessage($"[{DateTime.Now.ToString()}] Error: Could not reconnect to COM port after several attempts");
+                Logger.Log($"[{DateTime.Now.ToString()}] Error: Could not reconnect to COM port after several attempts");
             });
         }
-        private void LogMessage(string message)
+
+        private void SafeUI(Action action)
         {
-            string logDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "COMToEthernet");
-            Directory.CreateDirectory(logDirectory);
+            if (IsDisposed)
+                return;
 
-            string timestamp = DateTime.Now.ToString("yyyyMMdd");
-            string logFilePath = Path.Combine(logDirectory, $"log_{timestamp}.txt");
-
-            using (StreamWriter writer = new StreamWriter(logFilePath, true))
+            if (InvokeRequired)
             {
-                writer.WriteLine($"{DateTime.Now}: {message}");
+                try
+                {
+                    BeginInvoke(action);
+                }
+                catch
+                {
+                    // Swallow
+                }
+            }
+            else
+            {
+                action();
             }
         }
-
         private void timer1_Tick(object sender, EventArgs e)
         {
             // Clear the text boxes to release memory
             txtCOMReceived.Text = "";
             txtTCPReceived.Text = "";
 
-            //LogMessage($"[{DateTime.Now.ToString()}] Clearing text boxes to release memory");
+            //Logger.Log($"[{DateTime.Now.ToString()}] Clearing text boxes to release memory");
         }
 
     }

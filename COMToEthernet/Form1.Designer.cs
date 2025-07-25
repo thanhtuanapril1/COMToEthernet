@@ -60,6 +60,7 @@
             txtCOMReceived = new TextBox();
             pictureBox1 = new PictureBox();
             timer1 = new System.Windows.Forms.Timer(components);
+            label10 = new Label();
             panel1.SuspendLayout();
             panel2.SuspendLayout();
             panel3.SuspendLayout();
@@ -346,11 +347,22 @@
             timer1.Interval = 60000;
             timer1.Tick += timer1_Tick;
             // 
+            // label10
+            // 
+            label10.AutoSize = true;
+            label10.Font = new Font("Segoe UI", 7F);
+            label10.Location = new Point(668, 294);
+            label10.Name = "label10";
+            label10.Size = new Size(30, 12);
+            label10.TabIndex = 20;
+            label10.Text = "V1.0.7";
+            // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(705, 312);
+            Controls.Add(label10);
             Controls.Add(pictureBox1);
             Controls.Add(panel3);
             Controls.Add(label7);
@@ -409,5 +421,6 @@
         private Label lblCOMStatus;
         private PictureBox pictureBox1;
         private System.Windows.Forms.Timer timer1;
+        private Label label10;
     }
 }
