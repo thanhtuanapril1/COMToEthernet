@@ -243,7 +243,7 @@
             label6.AutoSize = true;
             label6.Location = new Point(13, 9);
             label6.Name = "label6";
-            label6.Size = new Size(52, 15);
+            label6.Size = new Size(53, 15);
             label6.TabIndex = 11;
             label6.Text = "TCP Port";
             // 
@@ -302,7 +302,7 @@
             label9.AutoSize = true;
             label9.Location = new Point(6, 10);
             label9.Name = "label9";
-            label9.Size = new Size(109, 15);
+            label9.Size = new Size(110, 15);
             label9.TabIndex = 3;
             label9.Text = "Received from TCP ";
             // 

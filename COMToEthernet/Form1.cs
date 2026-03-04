@@ -16,6 +16,7 @@ namespace COMToEthernet
         private readonly object _clientsLock = new object();
         // Buffer to hold incoming data from the serial port
         List<byte> _buffer = new List<byte>();
+        private readonly object _bufferLock = new object();
         System.Timers.Timer _timer = new System.Timers.Timer(50); // Adjust interval as needed
         bool _listening;
         bool hideApp;
@@ -94,6 +95,8 @@ namespace COMToEthernet
                     _serialPort.BaudRate = int.Parse(cbxBaudrate.Text);
                     _serialPort.Parity = MyHelper.GetParity(cbxParity.Text);
                     _serialPort.StopBits = MyHelper.GetStopBits(cbxStopBit.Text);
+                    // Unsubscribe first to prevent duplicate handlers on reconnect
+                    _serialPort.DataReceived -= DataReceivedHandler;
                     _serialPort.DataReceived += DataReceivedHandler;
 
                     _serialPort.Open();
@@ -173,6 +176,7 @@ namespace COMToEthernet
             {
                 lblClients.Text = "Clients: " + _connectedClients.Count.ToString();
                 _listening = false;
+                _timer.Stop(); // Stop the timer to prevent it firing after disconnect
                 _serialPort.Close();
                 _tcpListener.Stop();
 
@@ -360,8 +364,11 @@ namespace COMToEthernet
                 byte[] buffer = new byte[bytesToRead];
                 _serialPort.Read(buffer, 0, bytesToRead);
 
-                // Add received bytes to the buffer
-                _buffer.AddRange(buffer);
+                // Add received bytes to the buffer (lock to sync with OnTimedEvent)
+                lock (_bufferLock)
+                {
+                    _buffer.AddRange(buffer);
+                }
 
                 // Reset and start the timer
                 _timer.Stop();
@@ -385,13 +392,20 @@ namespace COMToEthernet
                     return;
                 }
                 // Assume the message is complete if no new data received within the interval
-                if (_buffer.Count > 0)
+                byte[] completeMessage = null;
+                lock (_bufferLock)
+                {
+                    if (_buffer.Count > 0)
+                    {
+                        completeMessage = _buffer.ToArray();
+                        _buffer.Clear();
+                    }
+                }
+
+                if (completeMessage != null)
                 {
                     try
                     {
-                        // Convert the buffer to a byte array and clear the buffer
-                        byte[] completeMessage = _buffer.ToArray();
-                        _buffer.Clear();
 
                         string data = BitConverter.ToString(completeMessage).Replace("-", " ");
                         SafeUI(() =>
@@ -422,7 +436,10 @@ namespace COMToEthernet
                                 }
                                 catch (Exception ex)
                                 {
-                                    _connectedClients.Remove(client); // Remove from original list
+                                    lock (_clientsLock)
+                                    {
+                                        _connectedClients.Remove(client); // Remove from original list under lock
+                                    }
                                     client.Close();
                                     SafeUI(() =>
                                     {
