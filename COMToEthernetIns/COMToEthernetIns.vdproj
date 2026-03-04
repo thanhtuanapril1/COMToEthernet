@@ -21,13 +21,13 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_59F1A2A3E6A947D98D2CC9488932E57C"
+        "MsmKey" = "8:_7F4DF56BC03E42BC989447C4F9D132EC"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
         {
-        "MsmKey" = "8:_7F4DF56BC03E42BC989447C4F9D132EC"
+        "MsmKey" = "8:_A6507C0E66F84444A6EC80E2B5C72603"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -128,12 +128,12 @@
         }
         "File"
         {
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_59F1A2A3E6A947D98D2CC9488932E57C"
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_7F4DF56BC03E42BC989447C4F9D132EC"
             {
-            "SourcePath" = "8:..\\..\\..\\..\\..\\2.Documents\\PigIconRemoveBg.ico"
-            "TargetName" = "8:PigIconRemoveBg.ico"
+            "SourcePath" = "8:..\\COMToEthernet\\App.config"
+            "TargetName" = "8:App.config"
             "Tag" = "8:"
-            "Folder" = "8:_4DB87D94A3EA4E058D40E2FAC1AEBF6D"
+            "Folder" = "8:_A37A0A1CC2B34438A4D031ED9589A4FA"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -148,12 +148,12 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_7F4DF56BC03E42BC989447C4F9D132EC"
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_A6507C0E66F84444A6EC80E2B5C72603"
             {
-            "SourcePath" = "8:..\\COMToEthernet\\App.config"
-            "TargetName" = "8:App.config"
+            "SourcePath" = "8:D:\\Tuan's Data\\z.Others\\PigIconRemoveBg.ico"
+            "TargetName" = "8:PigIconRemoveBg.ico"
             "Tag" = "8:"
-            "Folder" = "8:_A37A0A1CC2B34438A4D031ED9589A4FA"
+            "Folder" = "8:_4DB87D94A3EA4E058D40E2FAC1AEBF6D"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -275,7 +275,7 @@
         "Keywords" = "8:"
         "ARPCOMMENTS" = "8:This application for Create TCP server to transfer serial COM Port data"
         "ARPURLINFOABOUT" = "8:"
-        "ARPPRODUCTICON" = "8:_59F1A2A3E6A947D98D2CC9488932E57C"
+        "ARPPRODUCTICON" = "8:_A6507C0E66F84444A6EC80E2B5C72603"
         "ARPIconIndex" = "3:0"
         "SearchPath" = "8:"
         "UseSystemSearchPath" = "11:TRUE"
@@ -389,7 +389,7 @@
             "Target" = "8:_0085466C3A1F43E49DAA9CE8337794B0"
             "Folder" = "8:_7D95B8E6750B4B3A86E4C3B29F5EA7B2"
             "WorkingFolder" = "8:_4DB87D94A3EA4E058D40E2FAC1AEBF6D"
-            "Icon" = "8:_59F1A2A3E6A947D98D2CC9488932E57C"
+            "Icon" = "8:_A6507C0E66F84444A6EC80E2B5C72603"
             "Feature" = "8:"
             }
             "{970C0BB2-C7D0-45D7-ABFA-7EC378858BC0}:_4159A30DD3BB4A23BA8040A78B16ABDF"
@@ -403,7 +403,7 @@
             "Target" = "8:_0085466C3A1F43E49DAA9CE8337794B0"
             "Folder" = "8:_093BA5B3E6D2473D9BD06084D60051BA"
             "WorkingFolder" = "8:_4DB87D94A3EA4E058D40E2FAC1AEBF6D"
-            "Icon" = "8:_59F1A2A3E6A947D98D2CC9488932E57C"
+            "Icon" = "8:_A6507C0E66F84444A6EC80E2B5C72603"
             "Feature" = "8:"
             }
             "{970C0BB2-C7D0-45D7-ABFA-7EC378858BC0}:_4297C31A7A714EB1B8DA0A257F60EC26"
@@ -417,7 +417,7 @@
             "Target" = "8:_0085466C3A1F43E49DAA9CE8337794B0"
             "Folder" = "8:_6922456BAA3E4698B3806726F8A984D9"
             "WorkingFolder" = "8:_4DB87D94A3EA4E058D40E2FAC1AEBF6D"
-            "Icon" = "8:_59F1A2A3E6A947D98D2CC9488932E57C"
+            "Icon" = "8:_A6507C0E66F84444A6EC80E2B5C72603"
             "Feature" = "8:"
             }
         }
