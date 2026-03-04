@@ -62,27 +62,45 @@ namespace COMToEthernet
 
         private void Form1_Load(object sender, EventArgs e)
         {
-            string comPort = Config.AppSettings.Settings["COMPort"].Value;
-            string baudRate = Config.AppSettings.Settings["BaudRate"].Value;
-            string dataBit = Config.AppSettings.Settings["DataBit"].Value;
-            string parity = Config.AppSettings.Settings["Parity"].Value;
-            string stopBits = Config.AppSettings.Settings["StopBits"].Value;
-            string tcpPort = Config.AppSettings.Settings["TCPPort"].Value;
-            hideApp = bool.Parse(Config.AppSettings.Settings["HideApp"].Value);
-            runWhenStart = bool.Parse(Config.AppSettings.Settings["RunWhenStart"].Value);
-
-            cbxCOM.Text = comPort;
-            cbxBaudrate.Text = baudRate;
-            cbxDataBit.Text = dataBit;
-            cbxParity.Text = parity;
-            cbxStopBit.Text = stopBits;
-            tbxPort.Text = tcpPort;
-
-            if (runWhenStart) btConnect_Click(sender, e);
-            if (hideApp)
+            if (Config == null)
             {
-                this.ShowInTaskbar = false;
-                this.Hide();
+                lblStatusContent.Text = "Configuration could not be loaded. Using defaults.";
+                Logger.Log($"[{DateTime.Now}] Config is null in Form1_Load — skipping settings load.");
+                return;
+            }
+
+            try
+            {
+                string comPort   = Config.AppSettings.Settings["COMPort"]?.Value   ?? string.Empty;
+                string baudRate  = Config.AppSettings.Settings["BaudRate"]?.Value  ?? "9600";
+                string dataBit   = Config.AppSettings.Settings["DataBit"]?.Value   ?? "8";
+                string parity    = Config.AppSettings.Settings["Parity"]?.Value    ?? "None";
+                string stopBits  = Config.AppSettings.Settings["StopBits"]?.Value  ?? "1";
+                string tcpPort   = Config.AppSettings.Settings["TCPPort"]?.Value   ?? "8000";
+
+                if (!bool.TryParse(Config.AppSettings.Settings["HideApp"]?.Value, out hideApp))
+                    hideApp = false;
+                if (!bool.TryParse(Config.AppSettings.Settings["RunWhenStart"]?.Value, out runWhenStart))
+                    runWhenStart = false;
+
+                cbxCOM.Text      = comPort;
+                cbxBaudrate.Text = baudRate;
+                cbxDataBit.Text  = dataBit;
+                cbxParity.Text   = parity;
+                cbxStopBit.Text  = stopBits;
+                tbxPort.Text     = tcpPort;
+
+                if (runWhenStart) btConnect_Click(sender, e);
+                if (hideApp)
+                {
+                    this.ShowInTaskbar = false;
+                    this.Hide();
+                }
+            }
+            catch (Exception ex)
+            {
+                lblStatusContent.Text = $"Error loading settings: {ex.Message}";
+                Logger.Log($"[{DateTime.Now}] Error in Form1_Load: {ex.Message}");
             }
         }
         private void btConnect_Click(object sender, EventArgs e)
@@ -174,17 +192,27 @@ namespace COMToEthernet
         {
             try
             {
-                lblClients.Text = "Clients: " + _connectedClients.Count.ToString();
                 _listening = false;
                 _timer.Stop(); // Stop the timer to prevent it firing after disconnect
                 _serialPort.Close();
-                _tcpListener.Stop();
 
-                foreach (var client in _connectedClients)
+                // Null-guard: _tcpListener may be null if Connect never fully succeeded
+                _tcpListener?.Stop();
+
+                // Take a snapshot under lock, then close each client outside the lock
+                List<TcpClient> clientsToClose;
+                lock (_clientsLock)
+                {
+                    clientsToClose = _connectedClients.ToList();
+                    _connectedClients.Clear();
+                }
+
+                foreach (var client in clientsToClose)
                 {
                     client.Close();
                 }
-                _connectedClients.Clear();
+
+                lblClients.Text = "Clients: 0";
 
                 Logger.Log($"[{DateTime.Now.ToString()}] Serial port {cbxCOM.Text} closed.");
                 Logger.Log($"[{DateTime.Now.ToString()}] TCP server stopped.");
@@ -361,6 +389,10 @@ namespace COMToEthernet
             {
 
                 int bytesToRead = _serialPort.BytesToRead;
+
+                // Guard: some drivers fire DataReceived with 0 bytes — skip to avoid empty timer resets
+                if (bytesToRead <= 0) return;
+
                 byte[] buffer = new byte[bytesToRead];
                 _serialPort.Read(buffer, 0, bytesToRead);
 
