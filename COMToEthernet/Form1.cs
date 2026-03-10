@@ -17,6 +17,8 @@ namespace COMToEthernet
         // Buffer to hold incoming data from the serial port
         List<byte> _buffer = new List<byte>();
         private readonly object _bufferLock = new object();
+        // Ensures only one TCP client writes to the serial port at a time (Modbus RTU is half-duplex)
+        private readonly object _serialPortWriteLock = new object();
         System.Timers.Timer _timer = new System.Timers.Timer(50); // Adjust interval as needed
         bool _listening;
         bool hideApp;
@@ -111,8 +113,10 @@ namespace COMToEthernet
                 {
                     _serialPort.PortName = cbxCOM.Text;
                     _serialPort.BaudRate = int.Parse(cbxBaudrate.Text);
+                    _serialPort.DataBits = int.Parse(cbxDataBit.Text);
                     _serialPort.Parity = MyHelper.GetParity(cbxParity.Text);
                     _serialPort.StopBits = MyHelper.GetStopBits(cbxStopBit.Text);
+                    _serialPort.WriteTimeout = 1000; // 1 second — prevents infinite hang on blocked serial port
                     // Unsubscribe first to prevent duplicate handlers on reconnect
                     _serialPort.DataReceived -= DataReceivedHandler;
                     _serialPort.DataReceived += DataReceivedHandler;
@@ -301,6 +305,8 @@ namespace COMToEthernet
             }
             catch (SocketException ex)
             {
+                // If we stopped intentionally, this exception is expected — not a real error
+                if (!_listening) return;
                 SafeUI(() =>
                 {
                     lblStatusContent.Text = $"[{DateTime.Now.ToString()}] Error SocketException: {ex.Message}";
@@ -309,6 +315,8 @@ namespace COMToEthernet
             }
             catch (Exception ex)
             {
+                // If we stopped intentionally, this exception is expected — not a real error
+                if (!_listening) return;
                 SafeUI(() =>
                 {
                     lblStatusContent.Text = $"[{DateTime.Now.ToString()}] Error ListenForClients failed: {ex.Message}";
@@ -354,7 +362,22 @@ namespace COMToEthernet
 
                         if (_serialPort != null && _serialPort.IsOpen)
                         {
-                            _serialPort.Write(buffer, 0, bytesRead);
+                            try
+                            {
+                                // Lock so multiple TCP clients cannot interleave bytes on the RS-485 bus
+                                lock (_serialPortWriteLock)
+                                {
+                                    _serialPort.Write(buffer, 0, bytesRead);
+                                }
+                            }
+                            catch (Exception writeEx)
+                            {
+                                SafeUI(() =>
+                                {
+                                    lblStatusContent.Text = $"[{DateTime.Now}] COM write error: {writeEx.Message}";
+                                    Logger.Log($"[{DateTime.Now}] COM write error: {writeEx.Message}");
+                                });
+                            }
                         }
                         else
                         {
@@ -367,6 +390,8 @@ namespace COMToEthernet
                 }
                 catch (Exception ex)
                 {
+                    // If we stopped intentionally, the ReadAsync abort is expected — not a real error
+                    if (!_listening) return;
                     SafeUI(() =>
                     {
                         lblStatusContent.Text = $"[{DateTime.Now.ToString()}] Error: {ex.Message}";
@@ -394,12 +419,15 @@ namespace COMToEthernet
                 if (bytesToRead <= 0) return;
 
                 byte[] buffer = new byte[bytesToRead];
-                _serialPort.Read(buffer, 0, bytesToRead);
+                // Read() may return fewer bytes than bytesToRead — use the actual count
+                // to avoid adding zero-padded garbage that corrupts Modbus RTU frames
+                int actualRead = _serialPort.Read(buffer, 0, bytesToRead);
+                if (actualRead <= 0) return;
 
-                // Add received bytes to the buffer (lock to sync with OnTimedEvent)
+                // Add only the bytes actually read (lock to sync with OnTimedEvent)
                 lock (_bufferLock)
                 {
-                    _buffer.AddRange(buffer);
+                    _buffer.AddRange(buffer.Take(actualRead));
                 }
 
                 // Reset and start the timer

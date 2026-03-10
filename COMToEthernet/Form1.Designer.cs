@@ -355,7 +355,7 @@
             label10.Name = "label10";
             label10.Size = new Size(30, 12);
             label10.TabIndex = 20;
-            label10.Text = "V1.0.7";
+            label10.Text = "V1.0.8";
             // 
             // Form1
             // 
